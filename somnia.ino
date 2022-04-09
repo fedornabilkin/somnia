@@ -11,7 +11,7 @@ int modes[][5] = {
   {4000, 7000, 8000, 0, 10}, // 4-7-8
   {5000, 0, 5000, 0, 8}, // 5-5
   {2000, 0, 4000, 0, 15}, // 2-4
-  {4000, 4000, 4000, 4000, 5}, // 4-4-4-4 square
+ {4000, 4000, 4000, 4000, 5}, // 4-4-4-4 square
 };
 int leds[4] = {LED_GREEN, LED_RED, LED_BLUE, LED_RED};
 
@@ -39,11 +39,12 @@ void loop()
   }
   
   if (looper >= sleep) {
-    analogWrite(LED_BLUE, 255/4);
+    analogWrite(LED_BLUE, 255/10);
     return;
   }
   
   bool ledFlash = LOW;
+  int ledActive = leds[ledState];
   timeActive = modes[mode][ledState];
 
   if(timeActive < 2000){
@@ -58,22 +59,21 @@ void loop()
   uint32_t ledTimer = millis() - fixTimer;
   if (ledTimer >= timeActive) {
     fixTimer = millis();
-    
-    digitalWrite(leds[ledState], LOW);
     ledState += 1;
-    looper += 1;
-    ledState = (ledState > 3) ? 0 : ledState;
   } else {
-    if (ledTimer >= a && ledTimer <= a + d) {
-      ledFlash = LOW;
-    }
- 	else if (ledTimer >= a+d+c && ledTimer <= a + c + d*2) {
+    if ((ledTimer >= a && ledTimer <= a + d) || (ledTimer >= a+d+c && ledTimer <= a + c + d*2)) {
       ledFlash = LOW;
     } else {
       ledFlash = HIGH;
     }
   }
-  digitalWrite(leds[ledState], ledFlash);
+  
+  if (ledState > 3) {
+    ledState = 0;
+    looper += 1;
+  }
+
+  digitalWrite(ledActive, ledFlash);
 }
 
 // other
