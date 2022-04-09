@@ -1,17 +1,10 @@
-#define DEBOUNCE 100
-// led
-int LED_RED = 9;
-int LED_BLUE = 10;
-int LED_GREEN = 11;
-int LED_DEFAULT = 13;
-int BTN = 12;
+int LED_RED = PB4;
+int LED_BLUE = PB3;
+int LED_GREEN = PB5;
+int BTN = PB1;
 
-int a, c, d, ledActive, timeActive, ledState = 0;
-bool flag = false;
-
-uint32_t btnTimer, ledTimer, fixTimer = 0;
-
-int looper, sleep, mode = 0;
+int looper, mode, timeActive, ledState = 0;
+uint32_t btnTimer, fixTimer = 0;
 
 // green, red, blue, red, loop
 int modes[][5] = {
@@ -19,10 +12,8 @@ int modes[][5] = {
   {5000, 0, 5000, 0, 8}, // 5-5
   {2000, 0, 4000, 0, 15}, // 2-4
   {4000, 4000, 4000, 4000, 5}, // 4-4-4-4 square
-  {2000, 2000, 2000, 2000, 5}, // test
 };
 int leds[4] = {LED_GREEN, LED_RED, LED_BLUE, LED_RED};
-
 
 // setup
 void setup()
@@ -31,92 +22,65 @@ void setup()
   pinMode(LED_RED, OUTPUT);
   pinMode(LED_BLUE, OUTPUT);
   pinMode(LED_GREEN, OUTPUT);
-  pinMode(LED_DEFAULT, OUTPUT);
-  digitalWrite(LED_DEFAULT, LOW);
-  
-  sleep = modes[mode][4];
-  
-  //test
-  Serial.begin(9600);
-  Serial.println("setup");
-  //test
 }
 
 // loop
 void loop()
-{  
-  // читаем значение
+{
   bool btnState = digitalRead(BTN);
+  int sleep = modes[mode][4];
   
-  if (btnState && !flag && millis() - btnTimer > DEBOUNCE) {
-    flag = true;
-    btnTimer = millis();
-    
+  if (btnState && millis() - btnTimer > 100) {
     flashOut();
     modeChange();
-    clear();
-    fixTimer = millis();
+    timeActive = ledState = looper = 0;
+    fixTimer = btnTimer = millis();
     return;
-  }
-  if (!btnState && flag && millis() - btnTimer > DEBOUNCE) {
-    flag = false;
-    btnTimer = millis();
   }
   
   if (looper >= sleep) {
-    clear();
     analogWrite(LED_BLUE, 255/4);
     return;
   }
   
-  //active
-  ledActive = leds[ledState];
+  bool ledFlash = LOW;
   timeActive = modes[mode][ledState];
-  
-  createTiming(timeActive);
 
   if(timeActive < 2000){
     ledState += 1;
     return;
   }
   
-  ledTimer = millis() - fixTimer;
+  int d = (timeActive >= 5000) ? 350 : 250;
+  int a = (timeActive - d) / 2;
+  int c = a - 3 * d;
+  
+  uint32_t ledTimer = millis() - fixTimer;
   if (ledTimer >= timeActive) {
     fixTimer = millis();
     
-    digitalWrite(ledActive, LOW);
+    digitalWrite(leds[ledState], LOW);
     ledState += 1;
-  } else {
-    digitalWrite(ledActive, HIGH);
-    if (ledTimer >= a && ledTimer <= a + d) {
-      digitalWrite(ledActive, LOW);
-    }
-    if (ledTimer >= a+d+c && ledTimer <= a + c + d*2) {
-      digitalWrite(ledActive, LOW);
-    }
-  }
-  
-  if (ledState > 3) {
-    ledState = 0;
     looper += 1;
+    ledState = (ledState > 3) ? 0 : ledState;
+  } else {
+    if (ledTimer >= a && ledTimer <= a + d) {
+      ledFlash = LOW;
+    }
+ 	else if (ledTimer >= a+d+c && ledTimer <= a + c + d*2) {
+      ledFlash = LOW;
+    } else {
+      ledFlash = HIGH;
+    }
   }
-  
+  digitalWrite(leds[ledState], ledFlash);
 }
 
 // other
-void clear()
-{
-  ledActive = 0;
-  timeActive = 0;
-  ledState = 0;
-  ledTimer = 0;
-  looper = 0;
-}
-
 void flashOut()
 {
   int cnt = sizeof(leds) / sizeof(leds[0]);
-  for (int i = 0; i < cnt; i++) {
+  for (int i = 0; i <= cnt; i++) {
     digitalWrite(leds[i], LOW);
   }
 }
@@ -125,34 +89,12 @@ void modeChange()
 {
   mode += 1;
   int cnt = sizeof(modes) / sizeof(modes[0]);
-  if (mode > cnt) {
-    mode = 0;
-  }
+  mode = (mode > cnt-1) ? 0 : mode;
   
-  sleep = modes[mode][4];
-  
-  for (int i = 0; i < mode + 1; i++) {
-    digitalWrite(LED_DEFAULT, HIGH);
+  for (int i = 0; i <= mode; i++) {
+    digitalWrite(LED_RED, HIGH);
     delay(250);
-    digitalWrite(LED_DEFAULT, LOW);
+    digitalWrite(LED_RED, LOW);
     delay(250);
   }
-}
-
-void createTiming(int ledTime)
-{
-  d = 250;
-
-  if(ledTime >= 5000){
-    d = 300;
-  }
-  if(ledTime >= 7000){
-    d = 350;
-  }
-  if(ledTime >= 8000){
-    d = 400;
-  }
-
-  a = (ledTime - d) / 2;
-  c = a - 3 * d;
 }
